@@ -4,6 +4,7 @@ from .config import Config
 from .utils import ensure_event_loop
 from typing import Callable, Optional
 from fastapi import WebSocket, WebSocketDisconnect
+import struct
 
 
 
@@ -144,7 +145,10 @@ class AudioRecorder:
                 data = await websocket.receive_text()
                 audio_data = json.loads(data)
                 if audio_data['type'] == "audio_data":
-                    await self.process_audio(bytes(audio_data['data']))
+                    # Convert the list of floats to bytes
+                    float_list = audio_data['data']
+                    byte_data = struct.pack(f'{len(float_list)}f', *float_list)
+                    await self.process_audio(byte_data)
         finally:
             self.client = None
     
