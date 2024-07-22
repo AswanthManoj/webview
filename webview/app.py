@@ -58,11 +58,18 @@ async def root(request: Request):
             [=[audio_player_script]=]   // has the class definition AudioPlayer
             [=[audio_recorder_script]=] // has the class definition AudioRecorder
             
+            function getWebSocketUrl(path) {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const host = window.location.hostname;
+                const port = window.location.port || (protocol === 'wss:' ? '443' : '80');
+                return `${protocol}//${host}:${port}/${path}`;
+            }
+            
             // Initialize the AudioPlayer and AudioRecorder when the page loads
             window.onload = () => {
-                new HtmlUpdater(`ws://[=[host]=]:[=[port]=]/[=[html_updater_endpoint]=]`);
-                new AudioPlayer('ws://[=[host]=]:[=[port]=]/[=[audio_player_endpoint]=]');
-                new AudioRecorder("ws://[=[host]=]:[=[port]=]/[=[audio_recorder_endpoint]=]");
+                new HtmlUpdater(getWebSocketUrl('[=[html_updater_endpoint]=]'));
+                new AudioPlayer(getWebSocketUrl('[=[audio_player_endpoint]=]'));
+                new AudioRecorder(getWebSocketUrl('[=[audio_recorder_endpoint]=]'));
             };
         </script>
     </body>
@@ -70,9 +77,7 @@ async def root(request: Request):
     html = html.replace("[=[html_updater_script]=]", html_updater_script)
     html = html.replace("[=[audio_player_script]=]", audio_player_script)
     html = html.replace("[=[audio_recorder_script]=]", audio_recorder_script)
-    html = html.replace("[=[host]=]", config.host)
     html = html.replace("[=[title]=]", config.title)
-    html = html.replace("[=[port]=]", str(config.port))
     html = html.replace("[=[html_updater_endpoint]=]", HTML_UPDATER_ENDPOINT)
     html = html.replace("[=[audio_player_endpoint]=]", AUDIO_PLAYER_ENDPOINT)
     html = html.replace("[=[audio_recorder_endpoint]=]", AUDIO_RECORDER_ENDPOINT)
@@ -109,7 +114,10 @@ async def audio_recorder_socket(websocket: WebSocket):
 async def start_browser():
     global browser, page, playwright, config
     url = f"http://{config.host}:{config.port}/"
-    if config.custom_browser:
+    
+    if config.custom_browser is None:
+        return
+    elif config.custom_browser:
         playwright = await async_playwright().start()
         browser = await playwright.chromium.launch(
             headless=False, 
@@ -132,8 +140,12 @@ async def start_browser():
         await page.goto(url, wait_until='domcontentloaded')
         await page.evaluate('''document.body.style.overflow='hidden';''')
     elif browsers := list(br.browsers()):
-        br.launch(browsers[0].get("browser_type"), url=url)
-        
+        try:
+            br.launch(browsers[0].get("browser_type"), url=url)
+        except Exception as e:
+            if config.debug:
+                print(f"Failed to launch default browser: {e}")
+                
 async def shutdown():
     global browser, playwright
     if playwright and browser:

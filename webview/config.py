@@ -31,7 +31,7 @@ class Config:
         
     def set(self, title: Optional[str] = None, host: Optional[str] = None, 
             port: Optional[int] = None, debug: Optional[bool] = None, 
-            log_level: Optional[str] = None, custom_browser: Optional[bool] = None):
+            log_level: Optional[str] = None, custom_browser: Optional[bool] = False):
         """
         Set the configuration parameters for the WebView application.
 
@@ -41,7 +41,7 @@ class Config:
             port (int, optional): The port number for the server.
             debug (bool, optional): Whether to enable debug mode.
             log_level (str, optional): The logging verbosity for the fastapi server.
-            custom_browser (bool, optional): Whether to use a custom browser implementation.
+            custom_browser (bool, optional): Whether to use a custom browser implementation. `None` implies to start headless.
             
         Example:
             >>> from webview import config
@@ -57,7 +57,6 @@ class Config:
             self.debug = debug
         if log_level is not None:
             self.log_level = log_level
-        if custom_browser is not None:
-            self.custom_browser = custom_browser
+        self.custom_browser = custom_browser
 
 config = Config()

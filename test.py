@@ -60,7 +60,7 @@ def main():
     
     
 if __name__=='__main__':  
-    webview.configure(log_level="critical", custom_browser=True)
+    webview.configure(log_level="critical", custom_browser=None, port=8000)
     webview.start_webview() 
     
     main()

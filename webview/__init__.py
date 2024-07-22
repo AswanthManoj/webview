@@ -40,7 +40,7 @@ class WebView:
         self.audio_player = audio_player
         self.audio_recorder = audio_recorder
 
-    def configure(self, title="Webview App", host: str="127.0.0.1", port: int=8080, debug: bool=True, log_level: str="warning", custom_browser=False):
+    def configure(self, title="Webview App", host: str="127.0.0.1", port: int=8080, debug: bool=True, log_level: str="warning", custom_browser: Optional[bool]=False):
         """
         Configure the WebView settings.
 
@@ -50,7 +50,7 @@ class WebView:
             port (int, optional): The port number for the server.
             debug (bool, optional): Whether to enable debug mode.
             log_level (str, optional): The logging verbosity for the fastapi server.
-            custom_browser (bool, optional): Whether to use a custom browser implementation.
+            custom_browser (bool, optional): Whether to use a custom browser implementation if `None` app goes headless.
             
         Example:
         ```python
