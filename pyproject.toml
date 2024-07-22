@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "webview"
-version = "0.1.2"
+version = "0.1.4"
 authors = [
     "ASWANTH C Manoj <aswanthmanoj51@gmail.com>"
 ]
