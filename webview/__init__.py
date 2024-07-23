@@ -2,20 +2,25 @@ import time
 from .app import start_app
 from .config import config, Config
 from typing import Callable, Optional
-from .page_view import html_updater, HTMLUpdater, audio_player, AudioPlayer, AudioRecorder, audio_recorder
+from .page_view import ( html_updater, HTMLUpdater, 
+    audio_player, AudioPlayer, AudioRecorder, audio_recorder, UIEventHandler, ui_event_handler
+)
 
 class WebView:
     """
     WebView class for managing the web-based user interface.
 
     This class provides a high-level interface for configuring, starting,
-    and updating a web-based view. It encapsulates the configuration and
-    HTML updating functionality, offering a simplified API for users.
+    and updating a web-based view. It encapsulates the configuration,
+    HTML updating functionality, audio playback, audio recording, and UI event handling,
+    offering a simplified API for users.
 
     Attributes:
         config (Config): Configuration object for the WebView.
         html_updater (HTMLUpdater): Object responsible for updating the HTML content.
         audio_player (AudioPlayer): Object responsible for handling audio playback.
+        audio_recorder (AudioRecorder): Object responsible for handling audio recording.
+        ui_event_handler (UIEventHandler): Object responsible for handling UI events.
 
     Example:
     ```python
@@ -25,7 +30,7 @@ class WebView:
         webview.update_view("<h1>Hello, World!</h1>")
     ```
     """
-    def __init__(self, config: Config, html_updater: HTMLUpdater, audio_player: AudioPlayer, audio_recorder: AudioRecorder):
+    def __init__(self, config: Config, html_updater: HTMLUpdater, audio_player: AudioPlayer, audio_recorder: AudioRecorder, ui_event_handler: UIEventHandler):
         """
         Initialize a WebView instance.
 
@@ -34,11 +39,13 @@ class WebView:
             html_updater (HTMLUpdater): Object responsible for updating the HTML content.
             audio_player (AudioPlayer): Object responsible for handling audio playback.
             audio_recorder (AudioRecorder): Object responsible for handling audio record control and stream.
+            ui_event_handler (UIEventHandler): Object responsible for handling UI events.
         """
-        self.config  = config
+        self.config = config
         self.html_updater = html_updater
         self.audio_player = audio_player
         self.audio_recorder = audio_recorder
+        self.ui_event_handler = ui_event_handler
 
     def configure(self, title="Webview App", host: str="127.0.0.1", port: int=8080, debug: bool=True, log_level: str="warning", custom_browser: Optional[bool]=False):
         """
@@ -269,6 +276,25 @@ class WebView:
         """
         return await self.audio_recorder.async_stop_recording()
     
+    def set_ui_event_callback(self, callback: Callable[[str, str], None]):
+        """
+        Set a callback function to handle UI events.
+
+        Args:
+            callback (Callable[[str, str], None]): A function that takes two parameters:
+                - element_id (str): The ID of the element that triggered the event (eg., 'default_permission_button')
+                - event_type (str): The type of event (e.g., 'click')
+
+        Example:
+        ```python
+        def handle_ui_event(element_id, event_type):
+            print(f"UI event: {event_type} on element {element_id}")
+
+        webview.set_ui_event_callback(handle_ui_event)
+        ```
+        """
+        self.ui_event_handler.set_event_callback(callback)
+    
     def start_webview(self) -> bool:
         """
         Start the WebView application.
@@ -299,5 +325,6 @@ webview = WebView(
     config=config, 
     html_updater=html_updater, 
     audio_player=audio_player,
-    audio_recorder=audio_recorder
+    audio_recorder=audio_recorder,
+    ui_event_handler=ui_event_handler
 )

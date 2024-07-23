@@ -151,9 +151,45 @@ class AudioRecorder:
                     await self.process_audio(byte_data)
         finally:
             self.client = None
+            
+            
+
+class UIEventHandler:
+    
+    def __init__(self):
+        self.config = None
+        self.client: WebSocket = None
+        self.event_callback: Optional[Callable[[str, str], None]] = None
+        
+    def bind_config(self, config: Config):
+        self.config = config
+        
+    def set_event_callback(self, callback: Callable[[str, str], None]):
+        """Should have two variables: `element_id`, `event_type`"""
+        self.event_callback = callback
+        
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.client = websocket
+        if self.config and self.config.debug:
+            print("Webview: Client has been connected to UI event handler")
+        try:
+            while True:
+                data = await websocket.receive_text()
+                if self.config and self.config.debug:
+                    print(f"Webview UIEventHandler: Received event data: {data}")
+                event_data = json.loads(data)
+                if self.event_callback:
+                    try:
+                        self.event_callback(event_data['elementId'], event_data['eventType'])
+                    except Exception as e:
+                        print(f"Webview UIEventHandler: {str(e)}")
+        finally:
+            self.client = None
     
 
 
 html_updater = HTMLUpdater()
 audio_player = AudioPlayer()
 audio_recorder = AudioRecorder()
+ui_event_handler = UIEventHandler()

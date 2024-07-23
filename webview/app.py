@@ -5,12 +5,13 @@ from threading import Thread
 from .utils import ensure_event_loop
 from contextlib import asynccontextmanager
 from fastapi.responses import HTMLResponse
-from fastapi import FastAPI, WebSocket, Request
 from playwright.async_api import async_playwright
 from webview.scripts.html_updater import html_updater_script
 from webview.scripts.audio_player import audio_player_script
 from webview.scripts.audio_recorder import audio_recorder_script
-from .page_view import html_updater, audio_player, audio_recorder
+from webview.scripts.event_listener import ui_event_listener_script
+from fastapi import FastAPI, WebSocket, Request, WebSocketDisconnect
+from .page_view import html_updater, audio_player, audio_recorder, ui_event_handler
 
 
 config: Optional[Config] = None
@@ -24,9 +25,10 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
-AUDIO_PLAYER_ENDPOINT = "ws-audio-player"
-HTML_UPDATER_ENDPOINT = "ws-html-updater"
-AUDIO_RECORDER_ENDPOINT = "ws-audio_recorder"
+AUDIO_PLAYER_ENDPOINT = "audio-player"
+HTML_UPDATER_ENDPOINT = "html-updater"
+AUDIO_RECORDER_ENDPOINT = "audio_recorder"
+UI_EVENT_LISTEN_ENDPOINT = "ui_event_listener"
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -49,14 +51,62 @@ async def root(request: Request):
                 width: 100%;
                 height: 100%;
             }
+            #default_permission_view {
+                background-color: #1a1a1a;
+                color: #ffffff;
+                font-family: Arial, sans-serif;
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+                justify-content: center;
+                align-items: center;
+                display: flex;
+            }
+            .default_permission_view_container {
+                background-color: #2a2a2a;
+                padding: 20px;
+                border-radius: 10px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                text-align: center;
+            }
+            .default_permission_view_container h1 {
+                margin-bottom: 20px;
+            }
+            #default_permission_button {
+                background-color: #4CAF50;
+                border: none;
+                color: white;
+                padding: 15px 32px;
+                text-align: center;
+                text-decoration: none;
+                display: inline-block;
+                font-size: 16px;
+                margin: 4px 2px;
+                cursor: pointer;
+                border-radius: 5px;
+                transition: background-color 0.3s;
+            }
+            #default_permission_button:hover {
+                background-color: #45a049;
+            }
         </style>
     </head>
     <body>
-        <div id="main_update_content"></div>
+        <div id="main_update_content">
+            <div id="default_permission_view">
+                <div class="default_permission_view_container">
+                    <h1>Welcome to [=[title]=]</h1>
+                    <p>Please click the button below to allow permissions and start using the application.</p>
+                    <button id="default_permission_button">Allow Permissions</button>
+                </div>
+            </div>
+        </div>
         <script>
-            [=[html_updater_script]=]   // has the class definition HtmlUpdater
-            [=[audio_player_script]=]   // has the class definition AudioPlayer
-            [=[audio_recorder_script]=] // has the class definition AudioRecorder
+            [=[html_updater_script]=]     // has the class definition HtmlUpdater
+            [=[audio_player_script]=]     // has the class definition AudioPlayer
+            [=[audio_recorder_script]=]   // has the class definition AudioRecorder
+            [=[ui_event_handler_script]=] // has the class definition UIEventHandler
             
             function getWebSocketUrl(path) {
                 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -65,11 +115,26 @@ async def root(request: Request):
                 return `${protocol}//${host}:${port}/${path}`;
             }
             
-            // Initialize the AudioPlayer and AudioRecorder when the page loads
+            const uiEventHandler = new UIEventHandler(getWebSocketUrl('[=[ui_event_endpoint]=]'));
+            
+            document.getElementById('default_permission_button').addEventListener('click', function() {
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(function(stream) {
+                        console.log('Audio Record Permissions granted');
+                        stream.getTracks().forEach(track => track.stop());
+                        uiEventHandler.sendEvent('default_permission_button', 'click');
+                    })
+                    .catch(function(err) {
+                        console.log('Audio Record Permissions denied: ', err);
+                    });
+            });
+            
+            new AudioPlayer(getWebSocketUrl('[=[audio_player_endpoint]=]'));
+            new AudioRecorder(getWebSocketUrl('[=[audio_recorder_endpoint]=]'));
+            
+            // Initialize the HtmlUpdater when the page loads
             window.onload = () => {
                 new HtmlUpdater(getWebSocketUrl('[=[html_updater_endpoint]=]'));
-                new AudioPlayer(getWebSocketUrl('[=[audio_player_endpoint]=]'));
-                new AudioRecorder(getWebSocketUrl('[=[audio_recorder_endpoint]=]'));
             };
         </script>
     </body>
@@ -77,7 +142,9 @@ async def root(request: Request):
     html = html.replace("[=[html_updater_script]=]", html_updater_script)
     html = html.replace("[=[audio_player_script]=]", audio_player_script)
     html = html.replace("[=[audio_recorder_script]=]", audio_recorder_script)
+    html = html.replace("[=[ui_event_handler_script]=]", ui_event_listener_script)
     html = html.replace("[=[title]=]", config.title)
+    html = html.replace("[=[ui_event_endpoint]=]", UI_EVENT_LISTEN_ENDPOINT)
     html = html.replace("[=[html_updater_endpoint]=]", HTML_UPDATER_ENDPOINT)
     html = html.replace("[=[audio_player_endpoint]=]", AUDIO_PLAYER_ENDPOINT)
     html = html.replace("[=[audio_recorder_endpoint]=]", AUDIO_RECORDER_ENDPOINT)
@@ -92,13 +159,23 @@ async def html_updater_socket(websocket: WebSocket):
         if config.debug:
             print(f"Client browser disconnected from html updater socket: {str(e)}")
         
+@app.websocket(f"/{UI_EVENT_LISTEN_ENDPOINT}")
+async def ui_event_socket(websocket: WebSocket):
+    global config
+    try:
+        await ui_event_handler.connect(websocket)
+    except Exception as e:
+        if config and config.debug:
+            print(f"Client browser disconnected from UI event socket: {str(e)}")
+        
+        
 @app.websocket(f"/{AUDIO_PLAYER_ENDPOINT}")
 async def audio_playback_socket(websocket: WebSocket):
     global config
     try:
         await audio_player.connect(websocket)
     except Exception as e:
-        if config.debug:
+        if config and config.debug:
             print(f"Client browser disconnected from audio playback socket: {str(e)}")
 
 @app.websocket(f"/{AUDIO_RECORDER_ENDPOINT}")
@@ -107,7 +184,7 @@ async def audio_recorder_socket(websocket: WebSocket):
     try:
         await audio_recorder.connect(websocket)
     except Exception as e:
-        if config.debug:
+        if config and config.debug:
             print(f"Client browser disconnected from audio recorder socket: {str(e)}")
 
 
