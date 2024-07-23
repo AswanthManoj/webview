@@ -46,6 +46,7 @@ class HTMLUpdater:
 class AudioPlayer:
     
     def __init__(self):
+        self.time_out = 1
         self.config = None
         self.client: WebSocket = None
         self.audio_queue = asyncio.Queue()
@@ -54,18 +55,23 @@ class AudioPlayer:
     def bind_config(self, config: Config):
         self.config=config    
         
-    def play_audio(self, audio_data: str, delay: float) -> str:
+    def play_audio(self, audio_data: str, delay: float, time_out: float=2) -> str:
         loop = ensure_event_loop()
-        return loop.run_until_complete(self.async_play_audio(audio_data, delay))   
+        return loop.run_until_complete(self.async_play_audio(audio_data, delay, time_out))   
          
-    async def async_play_audio(self, audio_data: str, delay: float) -> str:
+    async def async_play_audio(self, audio_data: str, delay: float, time_out: float=2) -> str:
+        if time_out is None:
+            time_out=self.time_out
         audio_id: str = str(uuid.uuid4())
         if self.client:
             await self.audio_queue.put((audio_id, audio_data, delay))
             self.pending_audios[audio_id] = True
+        time_o = 0
         while True:
-            if audio_id not in self.pending_audios:
+            if (audio_id not in self.pending_audios) or (time_o>=time_out):
                 return audio_id
+            await asyncio.sleep(1)
+            time_o+=1
             
     async def connect(self, websocket: WebSocket):
         await websocket.accept()

@@ -114,7 +114,7 @@ class WebView:
         """
         await self.html_updater.async_update_view(html)
         
-    def play_audio(self, audio_data: str, delay: float=None) -> str:
+    def play_audio(self, audio_data: str, delay: float=None, time_out: float=2) -> str:
         """
         Play audio data in the WebView.
 
@@ -123,6 +123,7 @@ class WebView:
         Args:
             audio_data (str): The audio data to play.
             delay (float): A delay to start the audio play.
+            time_out (float): A timeout to return.
 
         Returns:
             str: The unique ID of the audio task.
@@ -139,9 +140,9 @@ class WebView:
             audio_id = webview.play_audio(audio)
         ```
         """
-        return self.audio_player.play_audio(audio_data, delay)
+        return self.audio_player.play_audio(audio_data, delay, time_out)
         
-    async def async_play_audio(self, audio_data: str, delay: float=None) -> str:
+    async def async_play_audio(self, audio_data: str, delay: float=None, time_out: float=2) -> str:
         """
         Asynchronously play audio data in the WebView.
 
@@ -150,6 +151,7 @@ class WebView:
         Args:
             audio_data (str): The audio data to play.
             delay (float): A delay to start the audio play.
+            time_out (float): A timeout to return.
 
         Returns:
             str: The unique ID of the audio task.
@@ -170,7 +172,7 @@ class WebView:
             asyncio.run(play())
         ```
         """
-        return await self.audio_player.async_play_audio(audio_data, delay)
+        return await self.audio_player.async_play_audio(audio_data, delay, time_out)
     
     def start_recording(self, audio_processor: Callable[[bytes], None]) -> bool:
         """
