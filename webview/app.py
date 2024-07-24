@@ -116,26 +116,14 @@ async def root(request: Request):
             }
             
             const uiEventHandler = new UIEventHandler(getWebSocketUrl('[=[ui_event_endpoint]=]'));
+            const audioPLayer = new AudioPlayer(getWebSocketUrl('[=[audio_player_endpoint]=]'));
+            const audioRecorder = new AudioRecorder(getWebSocketUrl('[=[audio_recorder_endpoint]=]'));
+            const htmlUpdater = new HtmlUpdater(getWebSocketUrl('[=[html_updater_endpoint]=]'));
             
             document.getElementById('default_permission_button').addEventListener('click', function() {
-                navigator.mediaDevices.getUserMedia({ audio: true })
-                    .then(function(stream) {
-                        console.log('Audio Record Permissions granted');
-                        stream.getTracks().forEach(track => track.stop());
-                        uiEventHandler.sendEvent('default_permission_button', 'click');
-                    })
-                    .catch(function(err) {
-                        console.log('Audio Record Permissions denied: ', err);
-                    });
+                console.log('Audio Record Permissions granted');
+                uiEventHandler.sendEvent('default_permission_button', 'click');
             });
-            
-            new AudioPlayer(getWebSocketUrl('[=[audio_player_endpoint]=]'));
-            new AudioRecorder(getWebSocketUrl('[=[audio_recorder_endpoint]=]'));
-            
-            // Initialize the HtmlUpdater when the page loads
-            window.onload = () => {
-                new HtmlUpdater(getWebSocketUrl('[=[html_updater_endpoint]=]'));
-            };
         </script>
     </body>
     </html>"""
